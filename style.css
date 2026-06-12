@@ -129,12 +129,67 @@ button.secondary,a.secondary{
 }
 .home-icon svg{width:26px;height:26px;display:block;}
 .home-icon:hover{background:rgba(56,189,248,.42);filter:none;}
-.student-id{margin:22px auto 4px;max-width:760px;text-align:left;background:#f8fafc;border:1px solid #dbeafe;border-radius:16px;padding:18px;}
+.student-id{margin:22px auto 4px;max-width:1040px;text-align:left;background:#f8fafc;border:1px solid #dbeafe;border-radius:16px;padding:18px;}
 .student-id h3{margin-top:0;text-align:center;color:#0f2f4f;}
-.student-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;}
+.student-grid{display:grid;grid-template-columns:3fr 1.2fr 1.2fr;gap:16px;}
 .student-grid label{font-weight:700;color:#172033;display:flex;flex-direction:column;gap:6px;}
-.student-grid input{padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:1rem;background:#fff;}
+.student-grid input,.student-grid select{padding:11px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:1rem;background:#fff;}
 .student-summary{font-weight:700;}
 .student-summary p{margin:.25rem 0;}
 @media(max-width:700px){.student-grid{grid-template-columns:1fr}.topbar{padding-right:72px}.home-icon{right:16px;width:40px;height:40px}}
-@media print{.home-icon{display:none!important}.student-id input{border:0;border-bottom:1px solid #111;border-radius:0}.student-summary{display:block!important}}
+@media print{.home-icon{display:none!important}.student-id input,.student-id select{border:0;border-bottom:1px solid #111;border-radius:0}.student-summary{display:block!important}}
+
+
+/* v19 - sem feedback de correção visível e rodapé fixo */
+body{
+  min-height:100vh;
+  padding-bottom:64px;
+}
+.footer{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:1000;
+  margin:0;
+  padding:10px 12px;
+  background:rgba(3,19,38,.78);
+  color:#dff6ff;
+  text-align:center;
+  backdrop-filter:blur(6px);
+}
+.correct-answer, .wrong-answer, .question.right, .question.wrong, .missing{
+  background:inherit !important;
+  border-color:#d8e2e7 !important;
+  color:inherit !important;
+  outline:none !important;
+}
+.answer-feedback{display:none !important;}
+@media print{
+  body{padding-bottom:0;}
+  .footer{display:none !important;}
+}
+
+/* v23 - identificação do aluno numa só linha */
+.student-id{
+  max-width:1120px;
+}
+.student-grid{
+  grid-template-columns:minmax(280px, 1fr) 90px 120px 120px !important;
+  gap:12px;
+  align-items:end;
+}
+.student-grid input,
+.student-grid select{
+  width:100%;
+}
+.student-grid label:nth-child(2),
+.student-grid label:nth-child(3),
+.student-grid label:nth-child(4){
+  min-width:0;
+}
+@media(max-width:760px){
+  .student-grid{
+    grid-template-columns:1fr !important;
+  }
+}
