@@ -210,7 +210,7 @@ async function enviarResultados(){
       body:formData
     });
     if(res.ok){
-      setEnviarStatus('Resultado enviado com sucesso. A mensagem segue em tabela e inclui um ficheiro CSV anexado.', true);
+      setEnviarStatus('Resultado enviado com sucesso.', true);
     }else{
       setEnviarStatus('Não foi possível enviar. Tenta novamente mais tarde.', false);
     }
