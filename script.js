@@ -256,7 +256,6 @@ async function enviarResultados(){
   addHidden('Respostas respondidas', `${resumo.respondidas} / ${resumo.total}`);
   addHidden('Respostas certas', `${resumo.certas} / ${resumo.total}`);
   addHidden('Nota', `${resumo.nota} valores em 10`);
-  addHidden('Tabela de resultados', gerarTabelaHtmlResultados(aluno,resumo));
   resumo.linhas.forEach((linha,idx)=>{
     addHidden(`${idx+1}. ${linha.pergunta}`, `Resposta: ${linha.resposta} | ${linha.estado} | Correta: ${linha.correta}`);
   });
@@ -281,7 +280,7 @@ async function enviarResultados(){
   setEnviarStatus('A enviar...', true);
   form.submit();
   setTimeout(()=>{
-    setEnviarStatus('Resultado enviado. Confirma se recebeste o email com a tabela e o ficheiro CSV anexado.', true);
+    setEnviarStatus('Resultado enviado.', true);
     form.remove();
   }, 1500);
 }
