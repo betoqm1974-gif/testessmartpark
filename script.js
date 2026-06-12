@@ -171,6 +171,50 @@ function gerarCsvResultados(aluno,resumo){
   return linhas.map(l=>l.map(csvEscape).join(';')).join('\n');
 }
 
+function htmlEscape(valor){
+  return String(valor ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function gerarTabelaHtmlResultados(aluno,resumo){
+  const linhas=resumo.linhas.map((linha,idx)=>`
+    <tr>
+      <td>${idx+1}</td>
+      <td>${htmlEscape(linha.pergunta)}</td>
+      <td>${htmlEscape(linha.resposta)}</td>
+      <td>${htmlEscape(linha.estado)}</td>
+      <td>${htmlEscape(linha.correta)}</td>
+    </tr>`).join('');
+  return `
+    <h2>Resultados - Pós-Teste SmartPark</h2>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr><th>Nome</th><td>${htmlEscape(aluno.nome)}</td></tr>
+      <tr><th>Idade</th><td>${htmlEscape(aluno.idade)}</td></tr>
+      <tr><th>Ano</th><td>${htmlEscape(aluno.ano)}</td></tr>
+      <tr><th>Turma</th><td>${htmlEscape(aluno.turma)}</td></tr>
+      <tr><th>Respostas respondidas</th><td>${htmlEscape(resumo.respondidas)} / ${htmlEscape(resumo.total)}</td></tr>
+      <tr><th>Respostas certas</th><td>${htmlEscape(resumo.certas)} / ${htmlEscape(resumo.total)}</td></tr>
+      <tr><th>Nota</th><td>${htmlEscape(resumo.nota)} valores em 10</td></tr>
+    </table>
+    <br>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>N.º</th>
+          <th>Pergunta</th>
+          <th>Resposta do aluno</th>
+          <th>Certa/Errada</th>
+          <th>Resposta correta</th>
+        </tr>
+      </thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+}
+
 async function enviarResultados(){
   limparMarcacoes();
   const aluno=obterDadosAluno();
@@ -178,43 +222,66 @@ async function enviarResultados(){
     setEnviarStatus('Preenche a identificação do aluno antes de enviar.', false);
     return;
   }
+
   const emailDestino='betoqm1974@gmail.com';
-  const assunto=`Resultados SmartPark - ${aluno.nome || 'Aluno'}`;
   const resumo=obterResumoResultados();
-  const formData=new FormData();
-  formData.append('_subject', assunto);
-  formData.append('_template', 'table');
-  formData.append('_captcha', 'false');
-  formData.append('Teste','Pós-Teste SmartPark');
-  formData.append('Nome', aluno.nome);
-  formData.append('Idade', aluno.idade);
-  formData.append('Ano', aluno.ano);
-  formData.append('Turma', aluno.turma);
-  formData.append('Respostas respondidas', `${resumo.respondidas} / ${resumo.total}`);
-  formData.append('Respostas certas', `${resumo.certas} / ${resumo.total}`);
-  formData.append('Nota', `${resumo.nota} valores em 10`);
+  const assunto=`Resultados SmartPark - ${aluno.nome || 'Aluno'}`;
+  const nomeSeguro=(aluno.nome || 'aluno').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'') || 'aluno';
+  const csv=gerarCsvResultados(aluno,resumo);
+  const ficheiro=new File([csv], `resultados_smartpark_${nomeSeguro}.csv`, {type:'text/csv;charset=utf-8'});
+
+  const form=document.createElement('form');
+  form.action=`https://formsubmit.co/${emailDestino}`;
+  form.method='POST';
+  form.enctype='multipart/form-data';
+  form.target='formsubmit_smartpark';
+  form.style.display='none';
+
+  const addHidden=(name,value)=>{
+    const input=document.createElement('input');
+    input.type='hidden';
+    input.name=name;
+    input.value=value;
+    form.appendChild(input);
+  };
+
+  addHidden('_subject', assunto);
+  addHidden('_captcha', 'false');
+  addHidden('_template', 'table');
+  addHidden('Teste','Pós-Teste SmartPark');
+  addHidden('Nome', aluno.nome);
+  addHidden('Idade', aluno.idade);
+  addHidden('Ano', aluno.ano);
+  addHidden('Turma', aluno.turma);
+  addHidden('Respostas respondidas', `${resumo.respondidas} / ${resumo.total}`);
+  addHidden('Respostas certas', `${resumo.certas} / ${resumo.total}`);
+  addHidden('Nota', `${resumo.nota} valores em 10`);
+  addHidden('Tabela de resultados', gerarTabelaHtmlResultados(aluno,resumo));
   resumo.linhas.forEach((linha,idx)=>{
-    formData.append(`${idx+1}. ${linha.pergunta}`, `Resposta: ${linha.resposta} | ${linha.estado} | Correta: ${linha.correta}`);
+    addHidden(`${idx+1}. ${linha.pergunta}`, `Resposta: ${linha.resposta} | ${linha.estado} | Correta: ${linha.correta}`);
   });
 
-  const csv=gerarCsvResultados(aluno,resumo);
-  const nomeSeguro=(aluno.nome || 'aluno').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'') || 'aluno';
-  const ficheiro=new File([csv], `resultados_smartpark_${nomeSeguro}.csv`, {type:'text/csv;charset=utf-8'});
-  formData.append('attachment', ficheiro);
+  const fileInput=document.createElement('input');
+  fileInput.type='file';
+  fileInput.name='attachment';
+  const dataTransfer=new DataTransfer();
+  dataTransfer.items.add(ficheiro);
+  fileInput.files=dataTransfer.files;
+  form.appendChild(fileInput);
 
-  setEnviarStatus('A enviar...', true);
-  try{
-    const res=await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(emailDestino)}`,{
-      method:'POST',
-      headers:{'Accept':'application/json'},
-      body:formData
-    });
-    if(res.ok){
-      setEnviarStatus('Resultado enviado com sucesso.', true);
-    }else{
-      setEnviarStatus('Não foi possível enviar. Tenta novamente mais tarde.', false);
-    }
-  }catch(err){
-    setEnviarStatus('Falha de rede ao enviar. Verifica a ligação e tenta novamente.', false);
+  let iframe=document.querySelector('iframe[name="formsubmit_smartpark"]');
+  if(!iframe){
+    iframe=document.createElement('iframe');
+    iframe.name='formsubmit_smartpark';
+    iframe.style.display='none';
+    document.body.appendChild(iframe);
   }
+
+  document.body.appendChild(form);
+  setEnviarStatus('A enviar...', true);
+  form.submit();
+  setTimeout(()=>{
+    setEnviarStatus('Resultado enviado. Confirma se recebeste o email com a tabela e o ficheiro CSV anexado.', true);
+    form.remove();
+  }, 1500);
 }
