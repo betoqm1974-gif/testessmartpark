@@ -48,14 +48,22 @@ function etiquetaPergunta(name){
 }
 function obterResumoResultados(){
   let total=0, certas=0, respondidas=0;
+  const linhas=[];
   for(const [name,ans] of Object.entries(ALL_ANSWERS)){
     total++;
     const value=getAnswer(name);
+    const ok=respostaCerta(value,ans);
     if(value) respondidas++;
-    if(respostaCerta(value,ans)) certas++;
+    if(ok) certas++;
+    linhas.push({
+      pergunta: etiquetaPergunta(name),
+      resposta: value || 'Sem resposta',
+      estado: ok ? 'Certa' : 'Errada',
+      correta: formatarResposta(ans)
+    });
   }
   const nota=total?((certas/total)*10).toFixed(2).replace('.',','):'0,00';
-  return {total, certas, respondidas, nota};
+  return {total, certas, respondidas, nota, linhas};
 }
 function limparMarcacoes(){
   document.querySelectorAll('.correct-answer,.wrong-answer,.right,.wrong,.missing').forEach(e=>e.classList.remove('correct-answer','wrong-answer','right','wrong','missing'));
@@ -143,6 +151,26 @@ function setEnviarStatus(msg, ok){
     status.className='result '+(ok?'ok':'bad');
   }
 }
+function csvEscape(valor){
+  return '"'+String(valor ?? '').replace(/"/g,'""')+'"';
+}
+
+function gerarCsvResultados(aluno,resumo){
+  const linhas=[];
+  linhas.push(['Teste','Pós-Teste SmartPark']);
+  linhas.push(['Nome',aluno.nome]);
+  linhas.push(['Idade',aluno.idade]);
+  linhas.push(['Ano',aluno.ano]);
+  linhas.push(['Turma',aluno.turma]);
+  linhas.push(['Respondidas',`${resumo.respondidas} / ${resumo.total}`]);
+  linhas.push(['Certas',`${resumo.certas} / ${resumo.total}`]);
+  linhas.push(['Nota',`${resumo.nota} valores em 10`]);
+  linhas.push([]);
+  linhas.push(['Pergunta','Resposta do aluno','Certa/Errada','Resposta correta']);
+  resumo.linhas.forEach(l=>linhas.push([l.pergunta,l.resposta,l.estado,l.correta]));
+  return linhas.map(l=>l.map(csvEscape).join(';')).join('\n');
+}
+
 async function enviarResultados(){
   limparMarcacoes();
   const aluno=obterDadosAluno();
@@ -165,11 +193,15 @@ async function enviarResultados(){
   formData.append('Respostas respondidas', `${resumo.respondidas} / ${resumo.total}`);
   formData.append('Respostas certas', `${resumo.certas} / ${resumo.total}`);
   formData.append('Nota', `${resumo.nota} valores em 10`);
-  formData.append('Tabela de respostas', 'Pergunta | Resposta do aluno');
-  for(const [name,ans] of Object.entries(ALL_ANSWERS)){
-    const value=getAnswer(name);
-    formData.append(etiquetaPergunta(name), value || 'Sem resposta');
-  }
+  resumo.linhas.forEach((linha,idx)=>{
+    formData.append(`${idx+1}. ${linha.pergunta}`, `Resposta: ${linha.resposta} | ${linha.estado} | Correta: ${linha.correta}`);
+  });
+
+  const csv=gerarCsvResultados(aluno,resumo);
+  const nomeSeguro=(aluno.nome || 'aluno').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'') || 'aluno';
+  const ficheiro=new File([csv], `resultados_smartpark_${nomeSeguro}.csv`, {type:'text/csv;charset=utf-8'});
+  formData.append('attachment', ficheiro);
+
   setEnviarStatus('A enviar...', true);
   try{
     const res=await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(emailDestino)}`,{
@@ -178,7 +210,7 @@ async function enviarResultados(){
       body:formData
     });
     if(res.ok){
-      setEnviarStatus('Resultado enviado com sucesso em formato de tabela.', true);
+      setEnviarStatus('Resultado enviado com sucesso. A mensagem segue em tabela e inclui um ficheiro CSV anexado.', true);
     }else{
       setEnviarStatus('Não foi possível enviar. Tenta novamente mais tarde.', false);
     }
