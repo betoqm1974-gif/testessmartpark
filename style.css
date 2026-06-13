@@ -223,3 +223,13 @@ body{
 .send-modal-card button{
   min-width:130px;
 }
+
+.instructions-box {
+  margin-top: 18px;
+}
+.instructions-box h3 {
+  margin-top: 0;
+}
+.instructions-box p {
+  margin: 8px 0;
+}
