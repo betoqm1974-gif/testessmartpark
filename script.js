@@ -3,7 +3,7 @@ const ALL_ANSWERS={
   t2_q1:'B', t2_q2:'C', t2_q3:'C', t2_q4:'B',
   t3_q1:'B',
   t4_q1:'B',
-  t5_q1:'B',
+  t5_q1:'C',
   t6_q1:['7','sete'],
   t7_q1:'D'
 };
